@@ -6,6 +6,8 @@ import re
 import urllib.parse
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import time
+import pickle
+import os
 
 app = Flask(__name__)
 
@@ -18,16 +20,19 @@ def scrape():
     data = request.get_json()
     url = data.get('url')
     crawl_depth = data.get('crawl_depth', 0)  # Default to 0 (no subpage crawling)
+    page = data.get('page', 0)  # Default to first page
     
     try:
         # Convert crawl_depth to int
         crawl_depth = int(crawl_depth)
+        page = int(page)
     except (ValueError, TypeError):
         crawl_depth = 0
+        page = 0
     
-    # Limit crawl depth to prevent excessive crawling
-    if crawl_depth > 2:
-        crawl_depth = 2
+    # Limit crawl depth to 0 or 1 only
+    if crawl_depth > 1:
+        crawl_depth = 1
     
     if not url:
         return jsonify({'error': 'URL is required'}), 400
@@ -40,11 +45,33 @@ def scrape():
         # Scrape main page
         main_result = scrape_url(url)
         
-        # Add subpages data if crawl_depth > 0
+        # Add subpages data if crawl_depth > 0 (automatically crawls up to 20 subpages)
         if crawl_depth > 0 and main_result.get('links'):
-            main_result['subpages'] = crawl_subpages(url, main_result['links'], crawl_depth)
+            # Get all potential subpage URLs
+            all_subpage_urls = get_all_subpage_urls(url, main_result['links'])
+            
+            # Save all URLs to session file for pagination
+            save_crawl_session(url, all_subpage_urls)
+            
+            # Get current page of subpages
+            main_result['subpages'] = crawl_subpages(url, all_subpage_urls, crawl_depth, page)
+            
+            # Add pagination info
+            total_pages = (len(all_subpage_urls) + 19) // 20  # Ceiling division
+            main_result['pagination'] = {
+                'current_page': page,
+                'total_pages': total_pages,
+                'total_subpages': len(all_subpage_urls),
+                'has_next': page < total_pages - 1
+            }
         else:
             main_result['subpages'] = []
+            main_result['pagination'] = {
+                'current_page': 0,
+                'total_pages': 0,
+                'total_subpages': 0,
+                'has_next': False
+            }
             
         return jsonify(main_result)
     
@@ -52,6 +79,49 @@ def scrape():
         return jsonify({'error': f'Error fetching URL: {str(e)}'}), 400
     except Exception as e:
         return jsonify({'error': f'Error scraping content: {str(e)}'}), 500
+
+@app.route('/continue_scraping', methods=['POST'])
+def continue_scraping():
+    """Continue scraping the next batch of subpages"""
+    data = request.get_json()
+    url = data.get('url')
+    page = data.get('page', 1)  # Default to page 1 (second batch)
+    
+    try:
+        page = int(page)
+    except (ValueError, TypeError):
+        page = 1
+        
+    if not url:
+        return jsonify({'error': 'URL is required'}), 400
+        
+    try:
+        # Load saved URLs from session
+        all_subpage_urls = load_crawl_session(url)
+        
+        if not all_subpage_urls:
+            return jsonify({'error': 'No saved crawl session found for this URL'}), 400
+            
+        # Get current page of subpages
+        subpages = crawl_subpages(url, all_subpage_urls, 1, page)
+        
+        # Add pagination info
+        total_pages = (len(all_subpage_urls) + 19) // 20  # Ceiling division
+        
+        result = {
+            'subpages': subpages,
+            'pagination': {
+                'current_page': page,
+                'total_pages': total_pages,
+                'total_subpages': len(all_subpage_urls),
+                'has_next': page < total_pages - 1
+            }
+        }
+            
+        return jsonify(result)
+        
+    except Exception as e:
+        return jsonify({'error': f'Error continuing scrape: {str(e)}'}), 500
 
 def scrape_url(url):
     """Scrape a single URL and return the data"""
@@ -127,12 +197,8 @@ def scrape_url(url):
     
     return result
 
-def crawl_subpages(base_url, links, depth):
-    """Crawl subpages up to the specified depth"""
-    if depth <= 0 or not links:
-        return []
-    
-    # Get unique subpage URLs from the same domain
+def get_all_subpage_urls(base_url, links):
+    """Get all potential subpage URLs from the same domain"""
     subpage_urls = []
     visited_urls = set()
     
@@ -141,15 +207,71 @@ def crawl_subpages(base_url, links, depth):
         if href and is_same_domain(base_url, href) and href not in visited_urls:
             subpage_urls.append(href)
             visited_urls.add(href)
+            
+    return subpage_urls
+
+def save_crawl_session(url, subpage_urls):
+    """Save crawl session data to file for pagination"""
+    domain = urllib.parse.urlparse(url).netloc.replace('www.', '')
     
-    # Limit the number of subpages to crawl
-    subpage_urls = subpage_urls[:5]  # Limit to 5 subpages to prevent excessive crawling
+    # Load existing crawl history
+    crawl_history = {}
+    if os.path.exists('crawl_history.pkl'):
+        try:
+            with open('crawl_history.pkl', 'rb') as f:
+                crawl_history = pickle.load(f)
+        except:
+            crawl_history = {}
+    
+    # Update with new data
+    crawl_history[domain] = {
+        'url': url,
+        'subpage_urls': subpage_urls,
+        'timestamp': time.time()
+    }
+    
+    # Save updated history
+    with open('crawl_history.pkl', 'wb') as f:
+        pickle.dump(crawl_history, f)
+
+def load_crawl_session(url):
+    """Load crawl session data from file"""
+    domain = urllib.parse.urlparse(url).netloc.replace('www.', '')
+    
+    if not os.path.exists('crawl_history.pkl'):
+        return []
+        
+    try:
+        with open('crawl_history.pkl', 'rb') as f:
+            crawl_history = pickle.load(f)
+            
+        if domain in crawl_history:
+            return crawl_history[domain]['subpage_urls']
+    except:
+        pass
+        
+    return []
+
+def crawl_subpages(base_url, subpage_urls, depth, page=0):
+    """Crawl a specific page of subpages"""
+    if depth <= 0 or not subpage_urls:
+        return []
+    
+    # Calculate slice for current page
+    start_idx = page * 20
+    end_idx = start_idx + 20
+    
+    # Get URLs for current page
+    current_page_urls = subpage_urls[start_idx:end_idx]
+    
+    if not current_page_urls:
+        return []
     
     results = []
     
     # Use ThreadPoolExecutor for parallel crawling
     with ThreadPoolExecutor(max_workers=3) as executor:
-        future_to_url = {executor.submit(scrape_subpage, url, depth): url for url in subpage_urls}
+        future_to_url = {executor.submit(scrape_subpage, url, depth): url for url in current_page_urls}
         
         for future in as_completed(future_to_url):
             url = future_to_url[future]
@@ -163,7 +285,7 @@ def crawl_subpages(base_url, links, depth):
     return results
 
 def scrape_subpage(url, depth):
-    """Scrape a subpage and its subpages recursively"""
+    """Scrape a subpage"""
     try:
         # Add a small delay to avoid overloading the server
         time.sleep(0.5)
@@ -171,11 +293,8 @@ def scrape_subpage(url, depth):
         # Scrape the current page
         result = scrape_url(url)
         
-        # Recursively scrape subpages if depth > 1
-        if depth > 1 and result.get('links'):
-            result['subpages'] = crawl_subpages(url, result['links'], depth - 1)
-        else:
-            result['subpages'] = []
+        # No recursive crawling needed anymore
+        result['subpages'] = []
             
         return result
     except Exception as e:

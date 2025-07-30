@@ -529,6 +529,7 @@ a:hover {
     font-size: 0.85rem;
 }
 
+/* Nested Subpages Styles */
 .nested-subpages {
     margin-top: 1rem;
     padding-left: 1rem;
@@ -539,6 +540,37 @@ a:hover {
     font-size: 1rem;
     margin-bottom: 0.5rem;
     color: var(--secondary-color);
+}
+
+/* Pagination Controls */
+.pagination-controls {
+    margin-top: 2rem;
+    padding: 1rem;
+    background-color: #f5f5f5;
+    border-radius: var(--border-radius);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+    text-align: center;
+}
+
+.pagination-info {
+    font-size: 0.9rem;
+    color: var(--light-text);
+    margin: 0;
+}
+
+.pagination-controls .action-button {
+    background-color: var(--primary-color);
+    color: white;
+    padding: 0.75rem 1.5rem;
+    font-size: 1rem;
+    min-width: 200px;
+}
+
+.pagination-controls .action-button:hover {
+    background-color: var(--secondary-color);
 }
 
 /* Responsive design */

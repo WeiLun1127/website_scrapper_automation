@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Web Scraper Tool</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <link rel="icon" href="{{ url_for('static', filename='img/favicon.png') }}" type="image/png">
+    <link rel="shortcut icon" href="{{ url_for('static', filename='img/favicon.png') }}" type="image/png">
     <meta name="description" content="A web scraping tool to extract data from websites">
 </head>
 <body>
@@ -24,13 +26,12 @@
                     <p id="url-help" class="help-text">Enter the full URL or domain name</p>
                 </div>
                 <div class="form-group">
-                    <label for="crawl-depth">Crawl Depth:</label>
+                    <label for="crawl-depth">Crawl Option:</label>
                     <select id="crawl-depth" name="crawl_depth" aria-describedby="depth-help">
-                        <option value="0">0 - Main page only</option>
-                        <option value="1">1 - Main page + direct subpages</option>
-                        <option value="2">2 - Main page + subpages + sub-subpages</option>
+                        <option value="0">Main page only</option>
+                        <option value="1">Include subpages (up to 20)</option>
                     </select>
-                    <p id="depth-help" class="help-text">Higher depth will take longer to scrape</p>
+                    <p id="depth-help" class="help-text">Including subpages will automatically crawl up to 20 subpages</p>
                 </div>
                 <div class="form-actions">
                     <button type="submit" id="scrape-button">Scrape Website</button>

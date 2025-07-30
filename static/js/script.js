@@ -37,6 +37,11 @@ document.addEventListener('DOMContentLoaded', () => {
     // Store all content items for filtering
     let allContentItems = [];
     
+    // Store current URL and crawl depth for pagination
+    let currentUrl = '';
+    let currentCrawlDepth = 0;
+    let currentPagination = null;
+    
     // Set up collapsible sections
     setupCollapsibleSections();
     
@@ -47,6 +52,10 @@ document.addEventListener('DOMContentLoaded', () => {
         // Get URL from input
         const url = urlInput.value.trim();
         const crawlDepth = crawlDepthSelect.value;
+        
+        // Store current URL and crawl depth
+        currentUrl = url;
+        currentCrawlDepth = crawlDepth;
         
         // Validate URL
         if (!url) {
@@ -60,6 +69,14 @@ document.addEventListener('DOMContentLoaded', () => {
         // Show loading indicator
         loadingElement.classList.remove('hidden');
         
+        // Update loading message based on crawl depth
+        const loadingMessage = loadingElement.querySelector('p');
+        if (crawlDepth == 1) {
+            loadingMessage.textContent = 'Scraping in progress (including up to 20 subpages)...';
+        } else {
+            loadingMessage.textContent = 'Scraping in progress...';
+        }
+        
         try {
             // Send request to backend
             const response = await fetch('/scrape', {
@@ -69,7 +86,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 },
                 body: JSON.stringify({ 
                     url,
-                    crawl_depth: crawlDepth
+                    crawl_depth: crawlDepth,
+                    page: 0 // Start with first page
                 }),
             });
             
@@ -85,6 +103,9 @@ document.addEventListener('DOMContentLoaded', () => {
             // Parse response data
             const data = await response.json();
             
+            // Store pagination info
+            currentPagination = data.pagination;
+            
             // Display results
             displayResults(data);
             
@@ -97,6 +118,128 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
     
+    // Function to load more subpages
+    async function loadMoreSubpages(page) {
+        if (!currentUrl || currentCrawlDepth !== '1') {
+            return;
+        }
+        
+        // Show loading indicator
+        loadingElement.classList.remove('hidden');
+        loadingElement.querySelector('p').textContent = `Loading more subpages (page ${page + 1})...`;
+        
+        try {
+            // Send request to backend
+            const response = await fetch('/continue_scraping', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ 
+                    url: currentUrl,
+                    page: page
+                }),
+            });
+            
+            // Hide loading indicator
+            loadingElement.classList.add('hidden');
+            
+            // Check if response is ok
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Failed to load more subpages');
+            }
+            
+            // Parse response data
+            const data = await response.json();
+            
+            // Update pagination info
+            currentPagination = data.pagination;
+            
+            // Append new subpages
+            if (data.subpages && data.subpages.length > 0) {
+                // Update subpages heading to show count
+                const subpagesHeading = subpagesSection.querySelector('h3');
+                const totalSubpages = currentPagination.total_subpages;
+                const loadedSubpages = Math.min((currentPagination.current_page + 1) * 20, totalSubpages);
+                subpagesHeading.textContent = `Subpages (${loadedSubpages} of ${totalSubpages})`;
+                
+                // Display subpages
+                displaySubpages(data.subpages, true); // true = append mode
+                
+                // Update pagination controls
+                updatePaginationControls();
+            }
+            
+        } catch (error) {
+            // Hide loading indicator
+            loadingElement.classList.add('hidden');
+            
+            // Show error message
+            showError(error.message || 'An error occurred while loading more subpages');
+        }
+    }
+    
+    // Function to create pagination controls
+    function createPaginationControls() {
+        // Remove existing pagination controls if any
+        const existingControls = document.getElementById('pagination-controls');
+        if (existingControls) {
+            existingControls.remove();
+        }
+        
+        // Create pagination controls container
+        const paginationControls = document.createElement('div');
+        paginationControls.id = 'pagination-controls';
+        paginationControls.classList.add('pagination-controls');
+        
+        // Create load more button if there are more pages
+        if (currentPagination && currentPagination.has_next) {
+            const loadMoreButton = document.createElement('button');
+            loadMoreButton.type = 'button';
+            loadMoreButton.classList.add('action-button');
+            loadMoreButton.textContent = `Load More Subpages`;
+            
+            // Add event listener
+            loadMoreButton.addEventListener('click', () => {
+                loadMoreSubpages(currentPagination.current_page + 1);
+            });
+            
+            // Add pagination info
+            const paginationInfo = document.createElement('p');
+            const currentPage = currentPagination.current_page + 1; // 0-indexed to 1-indexed
+            const totalPages = currentPagination.total_pages;
+            const loadedSubpages = Math.min(currentPage * 20, currentPagination.total_subpages);
+            const totalSubpages = currentPagination.total_subpages;
+            
+            paginationInfo.textContent = `Showing ${loadedSubpages} of ${totalSubpages} subpages (Page ${currentPage}/${totalPages})`;
+            paginationInfo.classList.add('pagination-info');
+            
+            paginationControls.appendChild(paginationInfo);
+            paginationControls.appendChild(loadMoreButton);
+        }
+        
+        return paginationControls;
+    }
+    
+    // Function to update pagination controls
+    function updatePaginationControls() {
+        // Create new pagination controls
+        const paginationControls = createPaginationControls();
+        
+        // Add to subpages section if there are controls
+        if (paginationControls.children.length > 0) {
+            // Remove existing controls
+            const existingControls = document.getElementById('pagination-controls');
+            if (existingControls) {
+                existingControls.remove();
+            }
+            
+            // Add new controls
+            subpagesContainer.appendChild(paginationControls);
+        }
+    }
+
     // Function to set up collapsible sections
     function setupCollapsibleSections() {
         const toggleButtons = document.querySelectorAll('.toggle-section');
@@ -129,8 +272,13 @@ document.addEventListener('DOMContentLoaded', () => {
     // Add clear button event listener
     clearButton.addEventListener('click', () => {
         urlInput.value = '';
-        crawlDepthSelect.value = '0';
+        crawlDepthSelect.value = '0'; // Default to main page only
         clearResults();
+        
+        // Reset current URL and crawl depth
+        currentUrl = '';
+        currentCrawlDepth = 0;
+        currentPagination = null;
     });
     
     // Add toggle full text button event listener
@@ -247,6 +395,12 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // Clear filter input
         contentFilterInput.value = '';
+        
+        // Also clear any pagination controls
+        const paginationControls = document.getElementById('pagination-controls');
+        if (paginationControls) {
+            paginationControls.remove();
+        }
     }
     
     // Function to display results
@@ -342,8 +496,24 @@ document.addEventListener('DOMContentLoaded', () => {
             // Show subpages section
             subpagesSection.classList.remove('hidden');
             
+            // Update subpages heading to show count
+            const subpagesHeading = subpagesSection.querySelector('h3');
+            if (data.pagination) {
+                const totalSubpages = data.pagination.total_subpages;
+                const loadedSubpages = Math.min((data.pagination.current_page + 1) * 20, totalSubpages);
+                subpagesHeading.textContent = `Subpages (${loadedSubpages} of ${totalSubpages})`;
+            } else {
+                subpagesHeading.textContent = `Subpages (${data.subpages.length})`;
+            }
+            
             // Display subpages
             displaySubpages(data.subpages);
+            
+            // Add pagination controls if needed
+            if (data.pagination && data.pagination.has_next) {
+                const paginationControls = createPaginationControls();
+                subpagesContainer.appendChild(paginationControls);
+            }
         }
     }
     
@@ -390,9 +560,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     // Function to display subpages
-    function displaySubpages(subpages) {
-        // Clear previous items
-        subpagesList.innerHTML = '';
+    function displaySubpages(subpages, append = false) {
+        // Clear previous items if not appending
+        if (!append) {
+            subpagesList.innerHTML = '';
+        }
         
         // Display subpages
         subpages.forEach(subpage => {
@@ -664,51 +836,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 content.appendChild(imagesSection);
             }
             
-            // Add nested subpages if available
-            if (subpage.subpages && subpage.subpages.length > 0) {
-                const nestedSubpages = document.createElement('div');
-                nestedSubpages.classList.add('nested-subpages');
-                
-                const nestedTitle = document.createElement('h4');
-                nestedTitle.classList.add('nested-subpages-title');
-                nestedTitle.textContent = `Nested Subpages (${subpage.subpages.length})`;
-                
-                const copyNestedButton = document.createElement('button');
-                copyNestedButton.type = 'button';
-                copyNestedButton.classList.add('action-button', 'small');
-                copyNestedButton.textContent = 'Copy Subpage URLs';
-                copyNestedButton.addEventListener('click', () => {
-                    const nestedText = subpage.subpages
-                        .filter(nested => nested && nested.url)
-                        .map(nested => `${nested.title || 'Subpage'}: ${nested.url}`)
-                        .join('\n');
-                    copyTextToClipboard(nestedText, copyNestedButton);
-                });
-                
-                nestedSubpages.appendChild(nestedTitle);
-                
-                // Add nested subpage links
-                const nestedList = document.createElement('ul');
-                
-                subpage.subpages.forEach(nestedSubpage => {
-                    if (!nestedSubpage) return;
-                    
-                    const nestedItem = document.createElement('li');
-                    
-                    const nestedLink = document.createElement('a');
-                    nestedLink.href = nestedSubpage.url;
-                    nestedLink.textContent = nestedSubpage.title || nestedSubpage.url;
-                    nestedLink.target = '_blank';
-                    nestedLink.rel = 'noopener noreferrer';
-                    
-                    nestedItem.appendChild(nestedLink);
-                    nestedList.appendChild(nestedItem);
-                });
-                
-                nestedSubpages.appendChild(nestedList);
-                nestedSubpages.appendChild(copyNestedButton);
-                content.appendChild(nestedSubpages);
-            }
+            // Nested subpages section removed as we no longer support depth > 1
             
             // Add all elements to subpage item
             subpageItem.appendChild(header);
