@@ -23,6 +23,8 @@ pip install -r requirements.txt
 
 ## Usage
 
+### Local Development
+
 1. Start the Flask application:
 
 ```bash
@@ -32,6 +34,15 @@ python app.py
 2. Open your browser and navigate to `http://localhost:5000`
 3. Enter a website URL in the input field and click "Scrape Website"
 4. View the extracted data in the results section
+
+### Deployment on Vercel
+
+This application is configured to be deployed on Vercel:
+
+1. Push your code to GitHub
+2. Connect your GitHub repository to Vercel
+3. Vercel will automatically detect the Python application
+4. No additional configuration is needed as the `vercel.json` file handles the setup
 
 ## Dependencies
 
