@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Web Scraper Tool</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <meta name="description" content="A web scraping tool to extract data from websites">
+</head>
+<body>
+    <header>
+        <h1>Web Scraper Tool</h1>
+        <p>Enter a URL to scrape data from a website</p>
+    </header>
+
+    <main>
+        <section class="scraper-form">
+            <form id="scraper-form" aria-labelledby="form-heading">
+                <h2 id="form-heading">Enter Website URL</h2>
+                <div class="form-group">
+                    <label for="url-input">Website URL:</label>
+                    <input type="text" id="url-input" name="url" placeholder="e.g., example.com" required
+                           aria-describedby="url-help">
+                    <p id="url-help" class="help-text">Enter the full URL or domain name</p>
+                </div>
+                <div class="form-group">
+                    <label for="crawl-depth">Crawl Depth:</label>
+                    <select id="crawl-depth" name="crawl_depth" aria-describedby="depth-help">
+                        <option value="0">0 - Main page only</option>
+                        <option value="1">1 - Main page + direct subpages</option>
+                        <option value="2">2 - Main page + subpages + sub-subpages</option>
+                    </select>
+                    <p id="depth-help" class="help-text">Higher depth will take longer to scrape</p>
+                </div>
+                <div class="form-actions">
+                    <button type="submit" id="scrape-button">Scrape Website</button>
+                    <button type="button" id="clear-button">Clear Results</button>
+                </div>
+            </form>
+        </section>
+
+        <section class="results-container" aria-live="polite">
+            <h2>Scraping Results</h2>
+            <div id="loading" class="hidden">
+                <p>Scraping in progress...</p>
+                <div class="loader" aria-hidden="true"></div>
+            </div>
+            <div id="error-message" class="error hidden" role="alert"></div>
+            
+            <div id="results" class="hidden">
+                <article class="result-section">
+                    <h3>Basic Information</h3>
+                    <dl>
+                        <dt>Title:</dt>
+                        <dd id="page-title"></dd>
+                        
+                        <dt>Meta Description:</dt>
+                        <dd id="meta-description"></dd>
+                    </dl>
+                </article>
+                
+                <article class="result-section">
+                    <h3>Headings</h3>
+                    <ul id="headings-list"></ul>
+                </article>
+                
+                <article class="result-section">
+                    <h3>Full Text Content</h3>
+                    <div class="content-controls">
+                        <button type="button" id="copy-full-text" class="action-button">Copy to Clipboard</button>
+                        <button type="button" id="toggle-full-text" class="toggle-button">Hide Full Text</button>
+                    </div>
+                    <div id="full-text-container">
+                        <pre id="full-text-content"></pre>
+                    </div>
+                </article>
+                
+                <article class="result-section collapsible-section">
+                    <div class="section-header">
+                        <h3>Links</h3>
+                        <button type="button" class="toggle-section" aria-expanded="false" aria-controls="links-container">
+                            <span class="expand-icon">+</span>
+                            <span class="collapse-icon hidden">−</span>
+                            <span class="sr-only">Toggle Links</span>
+                        </button>
+                    </div>
+                    <div id="links-container" class="section-content hidden">
+                        <ul id="links-list"></ul>
+                    </div>
+                </article>
+                
+                <article class="result-section collapsible-section">
+                    <div class="section-header">
+                        <h3>Images</h3>
+                        <button type="button" class="toggle-section" aria-expanded="false" aria-controls="images-container">
+                            <span class="expand-icon">+</span>
+                            <span class="collapse-icon hidden">−</span>
+                            <span class="sr-only">Toggle Images</span>
+                        </button>
+                    </div>
+                    <div id="images-container" class="section-content hidden">
+                        <ul id="images-list"></ul>
+                    </div>
+                </article>
+                
+                <article class="result-section">
+                    <h3>All Content Elements</h3>
+                    <div class="content-controls">
+                        <button type="button" id="toggle-all-content" class="toggle-button">Show All Content</button>
+                        <input type="text" id="content-filter" placeholder="Filter by text..." class="filter-input">
+                    </div>
+                    <div id="all-content-container" class="hidden">
+                        <div id="all-content-list" class="content-list"></div>
+                    </div>
+                </article>
+                
+                <article id="subpages-section" class="result-section hidden">
+                    <h3>Subpages</h3>
+                    <div id="subpages-container">
+                        <div id="subpages-list" class="subpages-list"></div>
+                    </div>
+                </article>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <p>&copy; 2025 Web Scraper Tool. All rights reserved.</p>
+    </footer>
+
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+</body>
+</html> 
