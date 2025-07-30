@@ -25,13 +25,10 @@
                            aria-describedby="url-help">
                     <p id="url-help" class="help-text">Enter the full URL or domain name</p>
                 </div>
+                <!-- Crawl depth is now fixed to include subpages, so we don't need this selector anymore -->
                 <div class="form-group">
-                    <label for="crawl-depth">Crawl Option:</label>
-                    <select id="crawl-depth" name="crawl_depth" aria-describedby="depth-help">
-                        <option value="0">Main page only</option>
-                        <option value="1">Include subpages (up to 20)</option>
-                    </select>
-                    <p id="depth-help" class="help-text">Including subpages will automatically crawl up to 20 subpages</p>
+                    <p class="info-text"><strong>Crawling Mode:</strong> Automatically includes up to 20 subpages</p>
+                    <input type="hidden" id="crawl-depth" name="crawl_depth" value="1">
                 </div>
                 <div class="form-actions">
                     <button type="submit" id="scrape-button">Scrape Website</button>

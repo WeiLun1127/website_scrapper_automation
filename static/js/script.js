@@ -37,9 +37,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // Store all content items for filtering
     let allContentItems = [];
     
-    // Store current URL and crawl depth for pagination
+    // Store current URL and pagination info
     let currentUrl = '';
-    let currentCrawlDepth = 0;
     let currentPagination = null;
     
     // Set up collapsible sections
@@ -53,9 +52,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const url = urlInput.value.trim();
         const crawlDepth = crawlDepthSelect.value;
         
-        // Store current URL and crawl depth
+        // Store current URL
         currentUrl = url;
-        currentCrawlDepth = crawlDepth;
         
         // Validate URL
         if (!url) {
@@ -69,13 +67,9 @@ document.addEventListener('DOMContentLoaded', () => {
         // Show loading indicator
         loadingElement.classList.remove('hidden');
         
-        // Update loading message based on crawl depth
+        // Update loading message - we're always including subpages now
         const loadingMessage = loadingElement.querySelector('p');
-        if (crawlDepth == 1) {
-            loadingMessage.textContent = 'Scraping in progress (including up to 20 subpages)...';
-        } else {
-            loadingMessage.textContent = 'Scraping in progress...';
-        }
+        loadingMessage.textContent = 'Scraping in progress (including up to 20 subpages)...';
         
         try {
             // Send request to backend
@@ -120,7 +114,7 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Function to load more subpages
     async function loadMoreSubpages(page) {
-        if (!currentUrl || currentCrawlDepth !== '1') {
+        if (!currentUrl) {
             return;
         }
         
@@ -272,12 +266,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // Add clear button event listener
     clearButton.addEventListener('click', () => {
         urlInput.value = '';
-        crawlDepthSelect.value = '0'; // Default to main page only
         clearResults();
         
-        // Reset current URL and crawl depth
+        // Reset current URL and pagination
         currentUrl = '';
-        currentCrawlDepth = 0;
         currentPagination = null;
     });
     

@@ -30,9 +30,8 @@ def scrape():
         crawl_depth = 0
         page = 0
     
-    # Limit crawl depth to 0 or 1 only
-    if crawl_depth > 1:
-        crawl_depth = 1
+    # Always use crawl_depth=1 (always include subpages)
+    crawl_depth = 1
     
     if not url:
         return jsonify({'error': 'URL is required'}), 400

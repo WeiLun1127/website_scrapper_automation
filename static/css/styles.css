@@ -147,6 +147,16 @@ select:focus {
     margin-top: 0.5rem;
 }
 
+.info-text {
+    font-size: 0.95rem;
+    color: var(--primary-color);
+    margin: 0.5rem 0;
+    padding: 0.75rem;
+    background-color: rgba(52, 152, 219, 0.1);
+    border-radius: var(--border-radius);
+    border-left: 3px solid var(--primary-color);
+}
+
 .form-actions {
     display: flex;
     gap: 1rem;
