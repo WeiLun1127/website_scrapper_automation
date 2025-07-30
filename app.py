@@ -453,7 +453,8 @@ def get_formatted_element_text(element):
     return text
 
 if __name__ == '__main__':
+    # Only use debug mode in development
     app.run(debug=True)
     
-# This is for Vercel deployment
+# Production configuration
 app.debug = False 
